@@ -69,7 +69,6 @@ class EVHIAcquisition:
         else:
             current_pred = torch.zeros((1, self.num_objectives), dtype=torch.float32, device=self.device)
         
-        partitioning = FastNondominatedPartitioning(ref_point=dynamic_ref, Y=current_pred)
         sampler = SobolQMCNormalSampler(sample_shape=torch.Size([128]))
         
         if train_x is None:
@@ -79,8 +78,8 @@ class EVHIAcquisition:
             model=model,
             ref_point=dynamic_ref,
             X_baseline=train_x,
-            partitioning=partitioning,
             sampler=sampler,
+            prune_baseline=True,    # 开启剪枝：剔除明显不是前沿的点，极大提升速度
         )
         
         if torch.cuda.is_available():
