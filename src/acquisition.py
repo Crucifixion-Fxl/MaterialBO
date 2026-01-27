@@ -4,7 +4,7 @@ EVHI (Expected Value of Hypervolume Improvement) acquisition function implementa
 
 import torch
 import logging
-from botorch.acquisition.multi_objective import qLogExpectedHypervolumeImprovement
+from botorch.acquisition.multi_objective import qLogNoisyExpectedHypervolumeImprovement
 from botorch.sampling import SobolQMCNormalSampler
 from botorch.utils.multi_objective.box_decompositions.non_dominated import FastNondominatedPartitioning
 
@@ -72,9 +72,13 @@ class EVHIAcquisition:
         partitioning = FastNondominatedPartitioning(ref_point=dynamic_ref, Y=current_pred)
         sampler = SobolQMCNormalSampler(sample_shape=torch.Size([128]))
         
-        acq_func = qLogExpectedHypervolumeImprovement(
+        if train_x is None:
+            raise ValueError("train_x is required for qLogNoisyExpectedHypervolumeImprovement")
+        
+        acq_func = qLogNoisyExpectedHypervolumeImprovement(
             model=model,
             ref_point=dynamic_ref,
+            X_baseline=train_x,
             partitioning=partitioning,
             sampler=sampler,
         )
