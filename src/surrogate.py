@@ -121,6 +121,7 @@ class GaussianProcessSurrogate:
     def get_model(self):
         """
         Get trained model
+        Get trained model
         
         Returns:
             ModelListGP: Trained model
