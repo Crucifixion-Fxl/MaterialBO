@@ -1,0 +1,12 @@
+// {
+//     "version": "2.0.0",
+//     "tasks": [
+//         {
+//             "label": "load-anaconda-module",
+//             "type": "shell",
+//             "command": "module load anaconda3 && conda activate bayes",
+//             "problemMatcher": [],
+//             "isBackground": false
+//         }
+//     ]
+// }
