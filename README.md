@@ -125,4 +125,4 @@ pytest test/
 
 ## 许可证
 
-请根据项目实际情况添加许可证信息。
+本项目采用 [MIT License](LICENSE)。
