@@ -91,21 +91,26 @@ def create_oxide_param_space():
     return param_space
 
 
-def run_organic_optimization(objective_version: str = 'complex', n_iter: int = 200):
+def run_organic_optimization(objective_version: str = 'complex', n_iter: int = 200, 
+                             noise_level: float = 0.0):
     """
     Run organic optimization
     
     Args:
-        objective_version: 'complex' or 'simple' - which version of objective functions to use
+        objective_version: 'complex', 'simple', 'standard', or 'paper' - which version of objective functions to use
         n_iter: Number of optimization iterations (default: 200)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
     """
     logger.info("=" * 60)
     logger.info(f"Starting organic three-objective Bayesian optimization (version: {objective_version})")
     logger.info(f"Number of iterations: {n_iter}")
+    logger.info(f"Noise level: {noise_level} ({'enabled' if noise_level > 0 else 'disabled'})")
     logger.info("=" * 60)
     
     experiment_time = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_dir = f"./output/organic/{objective_version}/{experiment_time}"
+    # Include noise level in folder name
+    noise_str = f"noise{noise_level:.2f}".replace('.', 'p')
+    output_dir = f"./output/organic/{objective_version}/{experiment_time}_{noise_str}"
     os.makedirs(output_dir, exist_ok=True)
     
     param_space = create_organic_param_space()
@@ -115,7 +120,8 @@ def run_organic_optimization(objective_version: str = 'complex', n_iter: int = 2
         output_dir=output_dir,
         seed=42,
         device=None,
-        objective_version=objective_version
+        objective_version=objective_version,
+        noise_level=noise_level
     )
     
     optimizer.optimize(n_iter=n_iter, simulation_flag=True)
@@ -127,21 +133,26 @@ def run_organic_optimization(objective_version: str = 'complex', n_iter: int = 2
     return optimizer
 
 
-def run_oxide_optimization(objective_version: str = 'complex', n_iter: int = 200):
+def run_oxide_optimization(objective_version: str = 'complex', n_iter: int = 200,
+                          noise_level: float = 0.0):
     """
     Run oxide optimization
     
     Args:
-        objective_version: 'complex' or 'simple' - which version of objective functions to use
+        objective_version: 'complex', 'simple', 'standard', or 'paper' - which version of objective functions to use
         n_iter: Number of optimization iterations (default: 200)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
     """
     logger.info("=" * 60)
     logger.info(f"Starting oxide three-objective Bayesian optimization (version: {objective_version})")
     logger.info(f"Number of iterations: {n_iter}")
+    logger.info(f"Noise level: {noise_level} ({'enabled' if noise_level > 0 else 'disabled'})")
     logger.info("=" * 60)
     
     experiment_time = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_dir = f"./output/oxide/{objective_version}/{experiment_time}"
+    # Include noise level in folder name
+    noise_str = f"noise{noise_level:.2f}".replace('.', 'p')
+    output_dir = f"./output/oxide/{objective_version}/{experiment_time}_{noise_str}"
     os.makedirs(output_dir, exist_ok=True)
     
     param_space = create_oxide_param_space()
@@ -151,7 +162,8 @@ def run_oxide_optimization(objective_version: str = 'complex', n_iter: int = 200
         output_dir=output_dir,
         seed=42,
         device=None,
-        objective_version=objective_version
+        objective_version=objective_version,
+        noise_level=noise_level
     )
     
     optimizer.optimize(n_iter=n_iter, simulation_flag=True)
@@ -236,7 +248,33 @@ def main():
             print("\n\n程序已取消 (Program cancelled)")
             return
     
+    # Select noise level (for all versions)
+    print("\n请选择噪声级别 (Please select noise level):")
+    print("  0.0 - 无噪声 (No noise) [默认/Default]")
+    print("  0.05 - 默认噪声级别 (Default noise level)")
+    print("  0.1 - 较高噪声级别 (Higher noise level)")
+    print("  0.15 - 高噪声级别 (High noise level)")
+    
+    while True:
+        try:
+            noise_input = input("\n请输入噪声级别 (Enter noise level, default: 0.0): ").strip()
+            if noise_input == '':
+                noise_level = 0.0
+                break
+            else:
+                noise_level = float(noise_input)
+                if noise_level >= 0:
+                    break
+                else:
+                    print("无效输入，请输入大于等于 0 的数字 (Invalid input, please enter a non-negative number)")
+        except ValueError:
+            print("无效输入，请输入数字 (Invalid input, please enter a number)")
+        except (EOFError, KeyboardInterrupt):
+            print("\n\n程序已取消 (Program cancelled)")
+            return
+    
     logger.info(f"Selected optimization type: {choice}, objective version: {objective_version}, iterations: {n_iter}")
+    logger.info(f"Noise level: {noise_level}")
     logger.info("=" * 60)
     
     # Run optimization based on selection
@@ -245,7 +283,11 @@ def main():
     if choice == '1' or choice == '3':
         # Run organic optimization
         try:
-            organic_optimizer = run_organic_optimization(objective_version=objective_version, n_iter=n_iter)
+            organic_optimizer = run_organic_optimization(
+                objective_version=objective_version, 
+                n_iter=n_iter,
+                noise_level=noise_level
+            )
             results['organic'] = organic_optimizer
         except Exception as e:
             logger.error(f"有机物优化失败 (Organic optimization failed): {e}", exc_info=True)
@@ -253,7 +295,11 @@ def main():
     if choice == '2' or choice == '3':
         # Run oxide optimization
         try:
-            oxide_optimizer = run_oxide_optimization(objective_version=objective_version, n_iter=n_iter)
+            oxide_optimizer = run_oxide_optimization(
+                objective_version=objective_version, 
+                n_iter=n_iter,
+                noise_level=noise_level
+            )
             results['oxide'] = oxide_optimizer
         except Exception as e:
             logger.error(f"氧化物优化失败 (Oxide optimization failed): {e}", exc_info=True)

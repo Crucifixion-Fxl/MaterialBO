@@ -548,7 +548,7 @@ class OrganicOptimizer(BaseMultiObjectiveOptimizer):
     
     def __init__(self, param_space: dict, output_dir: str = "./output",
                  seed: int = 42, device: Optional[torch.device] = None,
-                 objective_version: str = 'complex'):
+                 objective_version: str = 'complex', noise_level: float = 0.0):
         """
         Initialize organic optimizer
         
@@ -558,11 +558,17 @@ class OrganicOptimizer(BaseMultiObjectiveOptimizer):
             seed: Random seed
             device: Computing device
             objective_version: 'complex', 'simple', 'standard', or 'paper' - which version of objective functions to use
+            noise_level: Standard deviation of Gaussian noise to add to objective values.
+                        Default: 0.0 (no noise)
         """
         super().__init__(param_space, output_dir, seed, device)
         self.constraint_handler = OrganicConstraintHandler(self.constraints)
         self.objective_version = objective_version
-        logger.info(f"Initialized organic optimizer (objective version: {objective_version})")
+        self.noise_level = noise_level
+        if noise_level is not None and noise_level > 0:
+            logger.info(f"Initialized organic optimizer (objective version: {objective_version}, noise_level: {noise_level})")
+        else:
+            logger.info(f"Initialized organic optimizer (objective version: {objective_version})")
     
     def _apply_specific_constraints(self, candidates: torch.Tensor) -> torch.Tensor:
         """Apply organic constraints"""
@@ -601,7 +607,7 @@ class OrganicOptimizer(BaseMultiObjectiveOptimizer):
         normalized_candidates = normalize(candidates, self.param_bounds)
         
         # Compute objectives using imported functions
-        result = evaluate_organic_objectives(normalized_candidates, version=self.objective_version)
+        result = evaluate_organic_objectives(normalized_candidates, version=self.objective_version, noise_level=self.noise_level)
         
         # Return [Adhesion, Coverage, Uniformity] without batch normalization
         # Batch normalization causes hypervolume to remain constant because
@@ -613,7 +619,7 @@ class OxideOptimizer(BaseMultiObjectiveOptimizer):
     
     def __init__(self, param_space: dict, output_dir: str = "./output",
                  seed: int = 42, device: Optional[torch.device] = None,
-                 objective_version: str = 'complex'):
+                 objective_version: str = 'complex', noise_level: float = 0.0):
         """
         Initialize oxide optimizer
         
@@ -623,11 +629,17 @@ class OxideOptimizer(BaseMultiObjectiveOptimizer):
             seed: Random seed
             device: Computing device
             objective_version: 'complex', 'simple', 'standard', or 'paper' - which version of objective functions to use
+            noise_level: Standard deviation of Gaussian noise to add to objective values.
+                        Default: 0.0 (no noise)
         """
         super().__init__(param_space, output_dir, seed, device)
         self.constraint_handler = OxideConstraintHandler(self.constraints)
         self.objective_version = objective_version
-        logger.info(f"Initialized oxide optimizer (objective version: {objective_version})")
+        self.noise_level = noise_level
+        if noise_level is not None and noise_level > 0:
+            logger.info(f"Initialized oxide optimizer (objective version: {objective_version}, noise_level: {noise_level})")
+        else:
+            logger.info(f"Initialized oxide optimizer (objective version: {objective_version})")
 
     def _apply_specific_constraints(self, candidates: torch.Tensor) -> torch.Tensor:
         """Apply oxide constraints"""
@@ -664,7 +676,7 @@ class OxideOptimizer(BaseMultiObjectiveOptimizer):
         normalized_candidates = normalize(candidates, self.param_bounds)
         
         # Compute objectives using imported functions
-        result = evaluate_oxide_objectives(normalized_candidates, version=self.objective_version)
+        result = evaluate_oxide_objectives(normalized_candidates, version=self.objective_version, noise_level=self.noise_level)
         
         # Return [Adhesion, Coverage, Uniformity] without batch normalization
         # Batch normalization causes hypervolume to remain constant because

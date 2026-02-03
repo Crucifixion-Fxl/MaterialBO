@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.cm import ScalarMappable
 from sklearn.metrics import r2_score
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.multioutput import MultiOutputRegressor
 import seaborn as sns
 import sys
 import json
@@ -250,6 +252,98 @@ def train_model_and_predict(params, true_values, param_space, device='cpu'):
     return mean.cpu().numpy(), surrogate
 
 
+def train_random_forest_and_predict(params, true_values, test_params=None, test_true_values=None,
+                                    n_estimators=100, max_depth=30, random_state=0):
+    """
+    使用随机森林回归器训练模型并预测（包括训练集和测试集）
+    
+    Args:
+        params: 输入参数 (n_samples, n_params)
+        true_values: 真实目标值 (n_samples, 3) - 用于训练
+        test_params: 测试集参数 (n_test, n_params)，如果提供则计算测试集R²
+        test_true_values: 测试集真实目标值 (n_test, 3)，如果提供则计算测试集R²
+        n_estimators: 随机森林中树的数量
+        max_depth: 树的最大深度
+        random_state: 随机种子
+        
+    Returns:
+        train_r2_scores: 训练集R²分数数组（每个输出一个R²值，形状为 (n_outputs,)）
+        test_r2_scores: 测试集R²分数数组（每个输出一个R²值，形状为 (n_outputs,)），如果未提供测试集参数则为None
+    """
+    # RandomForestRegressor 原生支持多输出回归
+    regr_rf = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=random_state)
+    regr_rf.fit(params, true_values)
+    
+    # 训练集预测
+    train_predicted = regr_rf.predict(params)
+    
+    # 计算训练集R²分数（返回每个输出的R²值）
+    train_r2_scores = r2_score(true_values, train_predicted, multioutput='raw_values')
+    
+    # 如果提供了测试集参数和真实值，计算测试集R²
+    test_r2_scores = None
+    if test_params is not None and test_true_values is not None:
+        # 测试集预测
+        test_predicted = regr_rf.predict(test_params)
+        
+        # 计算测试集R²分数
+        test_r2_scores = r2_score(test_true_values, test_predicted, multioutput='raw_values')
+    
+    return train_r2_scores, test_r2_scores
+
+
+def train_gradient_boosting_and_predict(params, true_values, test_params=None, test_true_values=None,
+                                        n_estimators=500, max_depth=4, min_samples_split=5,
+                                        learning_rate=0.01, loss='squared_error', random_state=0):
+    """
+    使用梯度提升回归器训练模型并预测（包括训练集和测试集）
+    
+    Args:
+        params: 输入参数 (n_samples, n_params)
+        true_values: 真实目标值 (n_samples, 3) - 用于训练
+        test_params: 测试集参数 (n_test, n_params)，如果提供则计算测试集R²
+        test_true_values: 测试集真实目标值 (n_test, 3)，如果提供则计算测试集R²
+        n_estimators: 提升阶段的数量
+        max_depth: 树的最大深度
+        min_samples_split: 分裂内部节点所需的最小样本数
+        learning_rate: 学习率
+        loss: 损失函数（'squared_error', 'absolute_error', 'huber', 'quantile'）
+        random_state: 随机种子
+        
+    Returns:
+        train_r2_scores: 训练集R²分数数组（每个输出一个R²值，形状为 (n_outputs,)）
+        test_r2_scores: 测试集R²分数数组（每个输出一个R²值，形状为 (n_outputs,)），如果未提供测试集参数则为None
+    """
+    # GradientBoostingRegressor 不支持多输出回归，需要使用 MultiOutputRegressor 包装
+    gb_regressor = GradientBoostingRegressor(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        min_samples_split=min_samples_split,
+        learning_rate=learning_rate,
+        loss=loss,
+        random_state=random_state
+    )
+    regr_gb = MultiOutputRegressor(gb_regressor)
+    regr_gb.fit(params, true_values)
+    
+    # 训练集预测
+    train_predicted = regr_gb.predict(params)
+    
+    # 计算训练集R²分数（返回每个输出的R²值）
+    train_r2_scores = r2_score(true_values, train_predicted, multioutput='raw_values')
+    
+    # 如果提供了测试集参数和真实值，计算测试集R²
+    test_r2_scores = None
+    if test_params is not None and test_true_values is not None:
+        # 测试集预测
+        test_predicted = regr_gb.predict(test_params)
+        
+        # 计算测试集R²分数
+        test_r2_scores = r2_score(test_true_values, test_predicted, multioutput='raw_values')
+    
+    return train_r2_scores, test_r2_scores
+
+
 def generate_test_set(train_params, param_space, opt_type='organic', n_test=300, device='cpu', seed=123, available_params=None):
     """
     Generate test set that satisfies constraints and is not in training set
@@ -378,7 +472,11 @@ def run_random_search(param_space, opt_type='organic', n_iterations=5, batch_siz
     def evaluate_and_update(batch_X, iteration_num):
         """Evaluate batch and update history"""
         normalized_X = normalize(batch_X, param_bounds)
-        batch_Y = evaluate_organic_objectives(normalized_X, version=objective_version) if opt_type == 'organic' else evaluate_oxide_objectives(normalized_X, version=objective_version)
+        # noise_level=0.0 ensures no noise during evaluation
+        if opt_type == 'organic':
+            batch_Y = evaluate_organic_objectives(normalized_X, version=objective_version, noise_level=0.0)
+        else:
+            batch_Y = evaluate_oxide_objectives(normalized_X, version=objective_version, noise_level=0.0)
         all_X.append(batch_X)
         all_Y.append(batch_Y)
         combined_Y = torch.cat(all_Y, dim=0)
@@ -1432,7 +1530,7 @@ def plot_objectives_by_iteration_3d(true_values, sample_iterations, output_dir, 
     plt.close()
 
 
-def find_maximum_objective_values(param_space, opt_type='organic', objective_version='complex', device='cuda', batch_size=200000):
+def find_maximum_objective_values(param_space, opt_type='organic', objective_version='complex', device='cuda', batch_size=200000, noise_level=0.0):
     """
     Find maximum and minimum values of true objective functions in parameter space
     Exhaustively searches all possible combinations using GPU acceleration
@@ -1444,9 +1542,13 @@ def find_maximum_objective_values(param_space, opt_type='organic', objective_ver
         objective_version: 'complex' or 'simple' - which version of objective functions to use
         device: Computing device (should be 'cuda' for GPU acceleration)
         batch_size: Batch size for processing (default: 20 million)
+        noise_level: Noise level used in optimization (standard deviation of Gaussian noise).
+                    If > 0, max values are adjusted to account for noise-induced increases.
+                    The noise is added as: y = true_value + N(0, noise_level^2)
+                    Adjustment adds 3 * noise_level to max values (3 standard deviations, ~99.7% coverage)
         
     Returns:
-        max_values: Dictionary with max values for each objective
+        max_values: Dictionary with max values for each objective (adjusted for noise if noise_level > 0)
         max_params: Dictionary with parameters achieving max values
         min_values: Dictionary with min values for each objective
         min_params: Dictionary with parameters achieving min values
@@ -1545,10 +1647,11 @@ def find_maximum_objective_values(param_space, opt_type='organic', objective_ver
     start_compile = time.time()
     
     def evaluate_objectives_wrapper(normalized_x):
+        # noise_level=0.0 ensures no noise during evaluation
         if opt_type == 'organic':
-            return evaluate_organic_objectives(normalized_x, version=objective_version)
+            return evaluate_organic_objectives(normalized_x, version=objective_version, noise_level=0.0)
         else:
-            return evaluate_oxide_objectives(normalized_x, version=objective_version)
+            return evaluate_oxide_objectives(normalized_x, version=objective_version, noise_level=0.0)
     
     fast_evaluator = torch.compile(evaluate_objectives_wrapper, mode='reduce-overhead')
     
@@ -1608,6 +1711,18 @@ def find_maximum_objective_values(param_space, opt_type='organic', objective_ver
         max_params[obj_name] = max_params_np[idx]
         min_values[obj_name] = min_vals_np[idx]
         min_params[obj_name] = min_params_np[idx]
+    
+    # Adjust max values to account for noise if noise_level > 0
+    # Add 3 * noise_level to account for possible noise-induced increases (3 standard deviations, ~99.7% coverage)
+    # The noise is Gaussian: y = true_value + N(0, noise_level^2)
+    if noise_level > 0:
+        adjustment = 3 * noise_level
+        print(f"  Adjusting max values for noise level {noise_level} (adding 3 * noise_level = {adjustment:.6f})")
+        print(f"    This covers ~99.7% of noise distribution (3 standard deviations)")
+        for obj_name in obj_names:
+            original_max = max_values[obj_name]
+            max_values[obj_name] = original_max + adjustment
+            print(f"    {obj_name}: {original_max:.6f} -> {max_values[obj_name]:.6f}")
     
     total_time = time.time() - start_gen
     print(f"  Total time: {total_time:.4f} seconds")
@@ -1669,7 +1784,24 @@ def main(opt_type: str = 'organic', objective_version: str = 'complex'):
     # Sort by modification time (newest first) and select the latest
     experiment_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     latest_experiment_dir = experiment_dirs[0]
-    experiment_time = latest_experiment_dir.name
+    experiment_dir_name = latest_experiment_dir.name
+    
+    # Parse noise level from directory name (format: {time}_noise{level} or just {time} for backward compatibility)
+    noise_level = 0.0
+    if '_noise' in experiment_dir_name:
+        try:
+            # Extract noise level from directory name (e.g., "20260127-123456_noise0p05" -> 0.05)
+            noise_part = experiment_dir_name.split('_noise')[1]
+            noise_level = float(noise_part.replace('p', '.'))
+            experiment_time = experiment_dir_name.split('_noise')[0]
+        except (ValueError, IndexError):
+            # If parsing fails, use the whole name as experiment_time (backward compatibility)
+            experiment_time = experiment_dir_name
+            noise_level = 0.0
+    else:
+        # Backward compatibility: old format without noise level
+        experiment_time = experiment_dir_name
+        noise_level = 0.0
     
     csv_path = latest_experiment_dir / "experiment.csv"
     
@@ -1677,13 +1809,16 @@ def main(opt_type: str = 'organic', objective_version: str = 'complex'):
         print(f"Error: CSV file not found: {csv_path}")
         return
     
-    print(f"Found {len(experiment_dirs)} experiment directory(ies), analyzing the latest: {experiment_time}")
+    print(f"Found {len(experiment_dirs)} experiment directory(ies), analyzing the latest: {experiment_dir_name}")
     print(f"CSV file: {csv_path}")
     print(f"Optimization type: {opt_type}")
     print(f"Objective version: {objective_version}")
+    print(f"Noise level: {noise_level}")
     
     output_dir = latest_experiment_dir
-    analysis_output_dir = Path(__file__).parent / opt_type / f"results_{objective_version}" / experiment_time
+    # Include noise level in analysis output directory name
+    noise_str = f"noise{noise_level:.2f}".replace('.', 'p')
+    analysis_output_dir = Path(__file__).parent / opt_type / f"results_{objective_version}" / f"{experiment_time}_{noise_str}"
     analysis_output_dir.mkdir(parents=True, exist_ok=True)
     
     # Load CSV data
@@ -1692,11 +1827,15 @@ def main(opt_type: str = 'organic', objective_version: str = 'complex'):
     if opt_type == 'organic':
         params, true_values, param_cols, obj_cols = load_organic_results(csv_path)
         param_space = create_organic_param_space()
-        optimizer = OrganicOptimizer(param_space, device=torch.device('cpu'), objective_version=objective_version)
+        # Set noise_level=0.0 for evaluation (no noise during evaluation)
+        optimizer = OrganicOptimizer(param_space, device=torch.device('cpu'), 
+                                     objective_version=objective_version, noise_level=0.0)
     else:
         params, true_values, param_cols, obj_cols = load_oxide_results(csv_path)
         param_space = create_oxide_param_space()
-        optimizer = OxideOptimizer(param_space, device=torch.device('cpu'), objective_version=objective_version)
+        # Set noise_level=0.0 for evaluation (no noise during evaluation)
+        optimizer = OxideOptimizer(param_space, device=torch.device('cpu'), 
+                                   objective_version=objective_version, noise_level=0.0)
     
     print(f"Loaded {len(params)} samples")
     print(f"CSV contains true objective values (from objective functions)")
@@ -1718,7 +1857,7 @@ def main(opt_type: str = 'organic', objective_version: str = 'complex'):
     optimizer.param_steps = optimizer.param_steps.to(device)
     
     print("\nFinding maximum and minimum possible values of true objective functions...")
-    max_values, max_params, min_values, min_params, all_valid_params = find_maximum_objective_values(param_space, opt_type=opt_type, objective_version=objective_version, device=device)
+    max_values, max_params, min_values, min_params, all_valid_params = find_maximum_objective_values(param_space, opt_type=opt_type, objective_version=objective_version, device=device, noise_level=noise_level)
     
     # Get initial 10 samples from CSV and apply discretization to match available_params
     initial_samples = torch.tensor(params[:10], dtype=torch.float32, device=device)
@@ -1757,6 +1896,48 @@ def main(opt_type: str = 'organic', objective_version: str = 'complex'):
     print("TEST SET: MODEL PREDICTION vs TRUE VALUES")
     print("="*80)
     print_statistics(test_predicted, test_true_values, obj_cols, max_values=max_values, min_values=min_values)
+    
+    # Test Random Forest and Gradient Boosting regressors
+    print("\n" + "="*80)
+    print("TESTING ALTERNATIVE REGRESSORS")
+    print("="*80)
+    
+    # Random Forest
+    print("\nTesting Random Forest Regressor...")
+    rf_train_r2, rf_test_r2 = train_random_forest_and_predict(
+        params, 
+        true_values,
+        test_params=test_params,
+        test_true_values=test_true_values,
+        n_estimators=300,
+        max_depth=30,
+        random_state=0
+    )
+    print(f"Random Forest - Training R²: {rf_train_r2}")
+    print(f"Random Forest - Training R² per objective: {dict(zip(obj_cols, rf_train_r2))}")
+    if rf_test_r2 is not None:
+        print(f"Random Forest - Test R²: {rf_test_r2}")
+        print(f"Random Forest - Test R² per objective: {dict(zip(obj_cols, rf_test_r2))}")
+    
+    # Gradient Boosting
+    print("\nTesting Gradient Boosting Regressor...")
+    gb_train_r2, gb_test_r2 = train_gradient_boosting_and_predict(
+        params, 
+        true_values,
+        test_params=test_params,
+        test_true_values=test_true_values,
+        n_estimators=300,
+        max_depth=4,
+        min_samples_split=5,
+        learning_rate=0.01,
+        loss='squared_error',
+        random_state=0
+    )
+    print(f"Gradient Boosting - Training R²: {gb_train_r2}")
+    print(f"Gradient Boosting - Training R² per objective: {dict(zip(obj_cols, gb_train_r2))}")
+    if gb_test_r2 is not None:
+        print(f"Gradient Boosting - Test R²: {gb_test_r2}")
+        print(f"Gradient Boosting - Test R² per objective: {dict(zip(obj_cols, gb_test_r2))}")
     
     print("\nGenerating test set plots...")
     plot_comparison(test_predicted, test_true_values, obj_cols, analysis_output_dir, suffix='_test')
@@ -1842,21 +2023,20 @@ if __name__ == "__main__":
     print("  1. organic - Organic optimization")
     print("  2. oxide - Oxide optimization")
     
-    # while True:
-    #     try:
-    #         type_choice = input("\nEnter your choice (1 or 2, default: 1): ").strip()
-    #         if type_choice == '' or type_choice == '1':
-    #             opt_type = 'organic'
-    #             break
-    #         elif type_choice == '2':
-    #             opt_type = 'oxide'
-    #             break
-    #         else:
-    #             print("Invalid choice. Please enter 1 or 2.")
-    #     except (EOFError, KeyboardInterrupt):
-    #         print("\n\nProgram cancelled")
-    #         exit(0)
-    opt_type='organic'
+    while True:
+        try:
+            type_choice = input("\nEnter your choice (1 or 2, default: 1): ").strip()
+            if type_choice == '' or type_choice == '1':
+                opt_type = 'organic'
+                break
+            elif type_choice == '2':
+                opt_type = 'oxide'
+                break
+            else:
+                print("Invalid choice. Please enter 1 or 2.")
+        except (EOFError, KeyboardInterrupt):
+            print("\n\nProgram cancelled")
+            exit(0)
     
     # Select objective function version
     print("\nPlease select the objective function version:")
@@ -1865,27 +2045,26 @@ if __name__ == "__main__":
     print("  3. standard - Standard DTLZ2 test function from Botorch")
     print("  4. paper - Paper version with polynomial functions")
     
-    # while True:
-    #     try:
-    #         version_choice = input("\nEnter your choice (1/2/3/4, default: 1): ").strip()
-    #         if version_choice == '' or version_choice == '1':
-    #             objective_version = 'complex'
-    #             break
-    #         elif version_choice == '2':
-    #             objective_version = 'simple'
-    #             break
-    #         elif version_choice == '3':
-    #             objective_version = 'standard'
-    #             break
-    #         elif version_choice == '4':
-    #             objective_version = 'paper'
-    #             break
-    #         else:
-    #             print("Invalid choice. Please enter 1, 2, 3, or 4.")
-    #     except (EOFError, KeyboardInterrupt):
-    #         print("\n\nProgram cancelled")
-    #         exit(0)
-    objective_version='paper'
+    while True:
+        try:
+            version_choice = input("\nEnter your choice (1/2/3/4, default: 1): ").strip()
+            if version_choice == '' or version_choice == '1':
+                objective_version = 'complex'
+                break
+            elif version_choice == '2':
+                objective_version = 'simple'
+                break
+            elif version_choice == '3':
+                objective_version = 'standard'
+                break
+            elif version_choice == '4':
+                objective_version = 'paper'
+                break
+            else:
+                print("Invalid choice. Please enter 1, 2, 3, or 4.")
+        except (EOFError, KeyboardInterrupt):
+            print("\n\nProgram cancelled")
+            exit(0)
     
     print(f"\nSelected optimization type: {opt_type}")
     print(f"Selected objective version: {objective_version}")

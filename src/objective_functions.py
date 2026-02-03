@@ -80,7 +80,8 @@ def compute_dtlz2(normalized_candidates: torch.Tensor, num_objectives: int = 3) 
 # ============================================================================
 
 # Paper versions (polynomial functions from paper)
-def compute_coverage_organic_paper(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_coverage_organic_paper(normalized_candidates: torch.Tensor, 
+                                    noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Coverage objective for organic optimization (paper version)
     
@@ -95,6 +96,7 @@ def compute_coverage_organic_paper(normalized_candidates: torch.Tensor) -> torch
             x_4 = normalized_candidates[:, 3]
             x_5 = normalized_candidates[:, 4]
             x_6 = normalized_candidates[:, 5]
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Coverage values (n_samples, 1)
@@ -116,10 +118,16 @@ def compute_coverage_organic_paper(normalized_candidates: torch.Tensor) -> torch
          0.6 * x4 * x6 + 
          0.48 * x5 * x6)
     
-    return y.unsqueeze(1)
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y.unsqueeze(1) if y.dim() == 1 else y
 
 
-def compute_uniformity_organic_paper(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_uniformity_organic_paper(normalized_candidates: torch.Tensor,
+                                      noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Uniformity objective for organic optimization (paper version)
     
@@ -128,6 +136,7 @@ def compute_uniformity_organic_paper(normalized_candidates: torch.Tensor) -> tor
     
     Args:
         normalized_candidates: Normalized parameters (n_samples, 6)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Uniformity values (n_samples, 1)
@@ -149,10 +158,16 @@ def compute_uniformity_organic_paper(normalized_candidates: torch.Tensor) -> tor
          0.52 * x4 * x6 + 
          0.5 * x5 * x6)
     
-    return y.unsqueeze(1)
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y.unsqueeze(1) if y.dim() == 1 else y
 
 
-def compute_adhesion_organic_paper(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_adhesion_organic_paper(normalized_candidates: torch.Tensor,
+                                    noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Adhesion objective for organic optimization (paper version)
     
@@ -161,6 +176,7 @@ def compute_adhesion_organic_paper(normalized_candidates: torch.Tensor) -> torch
     
     Args:
         normalized_candidates: Normalized parameters (n_samples, 6)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Adhesion values (n_samples, 1)
@@ -182,17 +198,24 @@ def compute_adhesion_organic_paper(normalized_candidates: torch.Tensor) -> torch
          1.02 * x4 * x6 + 
          1.0 * x5 * x6)
     
-    return y.unsqueeze(1)
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y.unsqueeze(1) if y.dim() == 1 else y
 
 
 # Simple versions (mainly linear terms)
-def compute_uniformity_organic_simple(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_uniformity_organic_simple(normalized_candidates: torch.Tensor,
+                                       noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Uniformity objective for organic optimization (simple version)
     Mainly linear terms with minimal nonlinearity
     
     Args:
         normalized_candidates: Normalized parameters (n_samples, 6)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Uniformity values (n_samples, 1)
@@ -202,16 +225,25 @@ def compute_uniformity_organic_simple(normalized_candidates: torch.Tensor) -> to
     
     poly = 0.05 * normalized_candidates[:, 1] * normalized_candidates[:, 2]
     
-    return (base + poly).unsqueeze(1)
+    y = (base + poly).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def compute_coverage_organic_simple(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_coverage_organic_simple(normalized_candidates: torch.Tensor,
+                                     noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Coverage objective for organic optimization (simple version)
     Mainly linear terms with minimal nonlinearity
     
     Args:
         normalized_candidates: Normalized parameters (n_samples, 6)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Coverage values (n_samples, 1)
@@ -221,16 +253,25 @@ def compute_coverage_organic_simple(normalized_candidates: torch.Tensor) -> torc
     
     poly = 0.05 * normalized_candidates[:, 3] * normalized_candidates[:, 5]
     
-    return (base + poly).unsqueeze(1)
+    y = (base + poly).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def compute_adhesion_organic_simple(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_adhesion_organic_simple(normalized_candidates: torch.Tensor,
+                                     noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Adhesion objective for organic optimization (simple version)
     Mainly linear terms with minimal nonlinearity
     
     Args:
         normalized_candidates: Normalized parameters (n_samples, 6)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Adhesion values (n_samples, 1)
@@ -241,10 +282,18 @@ def compute_adhesion_organic_simple(normalized_candidates: torch.Tensor) -> torc
     
     poly = 0.06 * normalized_candidates[:, 0] * normalized_candidates[:, 4]
     
-    return (base + poly).unsqueeze(1)
+    y = (base + poly).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def compute_uniformity_organic(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_uniformity_organic(normalized_candidates: torch.Tensor,
+                                noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Uniformity objective for organic optimization
     
@@ -257,6 +306,7 @@ def compute_uniformity_organic(normalized_candidates: torch.Tensor) -> torch.Ten
             - organic_soak_time
             - organic_ph
             - organic_curing_time
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Uniformity values (n_samples, 1)
@@ -281,10 +331,18 @@ def compute_uniformity_organic(normalized_candidates: torch.Tensor) -> torch.Ten
     # Exponential decay for extreme values
     exp = 0.03 * torch.exp(-2.0 * (normalized_candidates[:, 4] - 0.5).pow(2))
     
-    return (base + inter + poly + exp).unsqueeze(1)
+    y = (base + inter + poly + exp).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def compute_coverage_organic(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_coverage_organic(normalized_candidates: torch.Tensor,
+                                      noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Coverage objective for organic optimization
     
@@ -297,6 +355,7 @@ def compute_coverage_organic(normalized_candidates: torch.Tensor) -> torch.Tenso
             - organic_soak_time
             - organic_ph
             - organic_curing_time
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Coverage values (n_samples, 1)
@@ -322,10 +381,18 @@ def compute_coverage_organic(normalized_candidates: torch.Tensor) -> torch.Tenso
     # Logarithmic term for concentration effect
     log = 0.03 * torch.log(1.0 + normalized_candidates[:, 1] * 5.0)
     
-    return (base + inter + poly + log).unsqueeze(1)
+    y = (base + inter + poly + log).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def compute_adhesion_organic(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_adhesion_organic(normalized_candidates: torch.Tensor,
+                                      noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Adhesion objective for organic optimization
     
@@ -368,10 +435,19 @@ def compute_adhesion_organic(normalized_candidates: torch.Tensor) -> torch.Tenso
     # Logarithmic term for concentration saturation
     log = 0.03 * torch.log(1.0 + normalized_candidates[:, 1] * 4.0)
     
-    return (base + inter + poly + exp + log).unsqueeze(1)
+    y = (base + inter + poly + exp + log).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def evaluate_organic_objectives(normalized_candidates: torch.Tensor, version: str = 'complex') -> torch.Tensor:
+def evaluate_organic_objectives(normalized_candidates: torch.Tensor, 
+                               version: str = 'complex',
+                                      noise_level: float = 0.0) -> torch.Tensor:
     """
     Evaluate all three organic objective functions
     
@@ -382,6 +458,7 @@ def evaluate_organic_objectives(normalized_candidates: torch.Tensor, version: st
             - 'simple': Custom simple functions with mainly linear terms
             - 'standard': DTLZ2 test function from Botorch
             - 'paper': Polynomial functions from paper
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Objective values (n_samples, 3): [Adhesion, Coverage, Uniformity]
@@ -400,21 +477,25 @@ def evaluate_organic_objectives(normalized_candidates: torch.Tensor, version: st
         min_val = -1.5459
         max_val = 0.0
         normalized = (negated - min_val) / (max_val - min_val)
+        # Add noise if noise_level > 0
+        if noise_level > 0:
+            noise = torch.randn_like(normalized) * noise_level
+            normalized = normalized + noise
         return normalized
     elif version == 'paper':
-        obj1 = compute_uniformity_organic_paper(normalized_candidates)
-        obj2 = compute_coverage_organic_paper(normalized_candidates)
-        obj3 = compute_adhesion_organic_paper(normalized_candidates)
+        obj1 = compute_uniformity_organic_paper(normalized_candidates, noise_level=noise_level)
+        obj2 = compute_coverage_organic_paper(normalized_candidates, noise_level=noise_level)
+        obj3 = compute_adhesion_organic_paper(normalized_candidates, noise_level=noise_level)
         return torch.cat([obj3, obj2, obj1], dim=-1)
     elif version == 'simple':
-        obj1 = compute_uniformity_organic_simple(normalized_candidates)
-        obj2 = compute_coverage_organic_simple(normalized_candidates)
-        obj3 = compute_adhesion_organic_simple(normalized_candidates)
+        obj1 = compute_uniformity_organic_simple(normalized_candidates, noise_level=noise_level)
+        obj2 = compute_coverage_organic_simple(normalized_candidates, noise_level=noise_level)
+        obj3 = compute_adhesion_organic_simple(normalized_candidates, noise_level=noise_level)
         return torch.cat([obj3, obj2, obj1], dim=-1)
     else:  # 'complex'
-        obj1 = compute_uniformity_organic(normalized_candidates)
-        obj2 = compute_coverage_organic(normalized_candidates)
-        obj3 = compute_adhesion_organic(normalized_candidates)
+        obj1 = compute_uniformity_organic(normalized_candidates, noise_level=noise_level)
+        obj2 = compute_coverage_organic(normalized_candidates, noise_level=noise_level)
+        obj3 = compute_adhesion_organic(normalized_candidates, noise_level=noise_level)
         return torch.cat([obj3, obj2, obj1], dim=-1)
 
 
@@ -423,7 +504,8 @@ def evaluate_organic_objectives(normalized_candidates: torch.Tensor, version: st
 # ============================================================================
 
 # Paper versions (polynomial functions from paper)
-def compute_coverage_oxide_paper(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_coverage_oxide_paper(normalized_candidates: torch.Tensor,
+                                  noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Coverage objective for oxide optimization (paper version)
     
@@ -436,6 +518,7 @@ def compute_coverage_oxide_paper(normalized_candidates: torch.Tensor) -> torch.T
             x₂ = normalized_candidates[:, 1] (metal_a_concentration)
             x₃ = normalized_candidates[:, 2] (metal_b_type)
             x₄ = normalized_candidates[:, 3] (metal_molar_ratio_b_a)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Coverage values (n_samples, 1)
@@ -455,10 +538,16 @@ def compute_coverage_oxide_paper(normalized_candidates: torch.Tensor) -> torch.T
          0.49 * x3.pow(2) + 
          0.31 * x3 * x4)
     
-    return y.unsqueeze(1)
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y.unsqueeze(1) if y.dim() == 1 else y
 
 
-def compute_uniformity_oxide_paper(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_uniformity_oxide_paper(normalized_candidates: torch.Tensor,
+                                    noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Uniformity objective for oxide optimization (paper version)
     
@@ -467,6 +556,7 @@ def compute_uniformity_oxide_paper(normalized_candidates: torch.Tensor) -> torch
     
     Args:
         normalized_candidates: Normalized parameters (n_samples, 4)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Uniformity values (n_samples, 1)
@@ -486,10 +576,16 @@ def compute_uniformity_oxide_paper(normalized_candidates: torch.Tensor) -> torch
          1.12 * x3.pow(2) + 
          0.28 * x3 * x4)
     
-    return y.unsqueeze(1)
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y.unsqueeze(1) if y.dim() == 1 else y
 
 
-def compute_adhesion_oxide_paper(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_adhesion_oxide_paper(normalized_candidates: torch.Tensor,
+                                  noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Adhesion objective for oxide optimization (paper version)
     
@@ -498,6 +594,7 @@ def compute_adhesion_oxide_paper(normalized_candidates: torch.Tensor) -> torch.T
     
     Args:
         normalized_candidates: Normalized parameters (n_samples, 4)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Adhesion values (n_samples, 1)
@@ -517,17 +614,24 @@ def compute_adhesion_oxide_paper(normalized_candidates: torch.Tensor) -> torch.T
          0.88 * x3.pow(2) + 
          0.51 * x3 * x4)
     
-    return y.unsqueeze(1)
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y.unsqueeze(1) if y.dim() == 1 else y
 
 
 # Simple versions (mainly linear terms)
-def compute_uniformity_oxide_simple(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_uniformity_oxide_simple(normalized_candidates: torch.Tensor,
+                                     noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Uniformity objective for oxide optimization (simple version)
     Mainly linear terms with minimal nonlinearity
     
     Args:
         normalized_candidates: Normalized parameters (n_samples, 4)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Uniformity values (n_samples, 1)
@@ -537,16 +641,25 @@ def compute_uniformity_oxide_simple(normalized_candidates: torch.Tensor) -> torc
     
     poly = 0.06 * normalized_candidates[:, 1] * normalized_candidates[:, 3]
     
-    return (base + poly).unsqueeze(1)
+    y = (base + poly).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def compute_coverage_oxide_simple(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_coverage_oxide_simple(normalized_candidates: torch.Tensor,
+                                   noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Coverage objective for oxide optimization (simple version)
     Mainly linear terms with minimal nonlinearity
     
     Args:
         normalized_candidates: Normalized parameters (n_samples, 4)
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Coverage values (n_samples, 1)
@@ -556,10 +669,18 @@ def compute_coverage_oxide_simple(normalized_candidates: torch.Tensor) -> torch.
     
     poly = 0.05 * normalized_candidates[:, 0] * normalized_candidates[:, 1]
     
-    return (base + poly).unsqueeze(1)
+    y = (base + poly).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def compute_adhesion_oxide_simple(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_adhesion_oxide_simple(normalized_candidates: torch.Tensor,
+                                    noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Adhesion objective for oxide optimization (simple version)
     Mainly linear terms with minimal nonlinearity
@@ -575,9 +696,17 @@ def compute_adhesion_oxide_simple(normalized_candidates: torch.Tensor) -> torch.
     
     poly = 0.07 * normalized_candidates[:, 0] * normalized_candidates[:, 1]
     
-    return (base + poly).unsqueeze(1)
+    y = (base + poly).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
-def compute_uniformity_oxide(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_uniformity_oxide(normalized_candidates: torch.Tensor,
+                                      noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Uniformity objective for oxide optimization
     
@@ -614,10 +743,18 @@ def compute_uniformity_oxide(normalized_candidates: torch.Tensor) -> torch.Tenso
     # Exponential term for optimal concentration range
     exp = 0.04 * torch.exp(-2.5 * (normalized_candidates[:, 1] - 0.5).pow(2))
     
-    return (base + inter + poly + exp).unsqueeze(1)
+    y = (base + inter + poly + exp).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def compute_coverage_oxide(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_coverage_oxide(normalized_candidates: torch.Tensor,
+                                      noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Coverage objective for oxide optimization
     
@@ -657,10 +794,18 @@ def compute_coverage_oxide(normalized_candidates: torch.Tensor) -> torch.Tensor:
     # Exponential term for type compatibility
     exp = 0.03 * torch.exp(-3.0 * (normalized_candidates[:, 0] - normalized_candidates[:, 2]).pow(2))
     
-    return (base + inter + poly + log + exp).unsqueeze(1)
+    y = (base + inter + poly + log + exp).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def compute_adhesion_oxide(normalized_candidates: torch.Tensor) -> torch.Tensor:
+def compute_adhesion_oxide(normalized_candidates: torch.Tensor,
+                                      noise_level: float = 0.0) -> torch.Tensor:
     """
     Compute Adhesion objective for oxide optimization
     
@@ -702,10 +847,19 @@ def compute_adhesion_oxide(normalized_candidates: torch.Tensor) -> torch.Tensor:
     # Logarithmic term for molar ratio effect
     log = 0.04 * torch.log(1.0 + normalized_candidates[:, 3] * 5.0)
     
-    return (base + inter + poly + exp + log).unsqueeze(1)
+    y = (base + inter + poly + exp + log).unsqueeze(1)
+    
+    # Add noise if noise_level > 0
+    if noise_level > 0:
+        noise = torch.randn_like(y) * noise_level
+        y = y + noise
+    
+    return y
 
 
-def evaluate_oxide_objectives(normalized_candidates: torch.Tensor, version: str = 'complex') -> torch.Tensor:
+def evaluate_oxide_objectives(normalized_candidates: torch.Tensor,
+                              version: str = 'complex',
+                                      noise_level: float = 0.0) -> torch.Tensor:
     """
     Evaluate all three oxide objective functions
     
@@ -716,6 +870,7 @@ def evaluate_oxide_objectives(normalized_candidates: torch.Tensor, version: str 
             - 'simple': Custom simple functions with mainly linear terms
             - 'standard': DTLZ2 test function from Botorch
             - 'paper': Polynomial functions from paper
+        noise_level: Standard deviation of Gaussian noise to add (default: 0.0, set to > 0.0 to enable)
             
     Returns:
         Objective values (n_samples, 3): [Adhesion, Coverage, Uniformity]
@@ -734,19 +889,23 @@ def evaluate_oxide_objectives(normalized_candidates: torch.Tensor, version: str 
         min_val = -1.5459
         max_val = 0.0
         normalized = (negated - min_val) / (max_val - min_val)
+        # Add noise if noise_level > 0
+        if noise_level > 0:
+            noise = torch.randn_like(normalized) * noise_level
+            normalized = normalized + noise
         return normalized
     elif version == 'paper':
-        obj1 = compute_uniformity_oxide_paper(normalized_candidates)
-        obj2 = compute_coverage_oxide_paper(normalized_candidates)
-        obj3 = compute_adhesion_oxide_paper(normalized_candidates)
+        obj1 = compute_uniformity_oxide_paper(normalized_candidates, noise_level=noise_level)
+        obj2 = compute_coverage_oxide_paper(normalized_candidates, noise_level=noise_level)
+        obj3 = compute_adhesion_oxide_paper(normalized_candidates, noise_level=noise_level)
         return torch.cat([obj3, obj2, obj1], dim=-1)
     elif version == 'simple':
-        obj1 = compute_uniformity_oxide_simple(normalized_candidates)
-        obj2 = compute_coverage_oxide_simple(normalized_candidates)
-        obj3 = compute_adhesion_oxide_simple(normalized_candidates)
+        obj1 = compute_uniformity_oxide_simple(normalized_candidates, noise_level=noise_level)
+        obj2 = compute_coverage_oxide_simple(normalized_candidates, noise_level=noise_level)
+        obj3 = compute_adhesion_oxide_simple(normalized_candidates, noise_level=noise_level)
         return torch.cat([obj3, obj2, obj1], dim=-1)
     else:  # 'complex'
-        obj1 = compute_uniformity_oxide(normalized_candidates)
-        obj2 = compute_coverage_oxide(normalized_candidates)
-        obj3 = compute_adhesion_oxide(normalized_candidates)
+        obj1 = compute_uniformity_oxide(normalized_candidates, noise_level=noise_level)
+        obj2 = compute_coverage_oxide(normalized_candidates, noise_level=noise_level)
+        obj3 = compute_adhesion_oxide(normalized_candidates, noise_level=noise_level)
         return torch.cat([obj3, obj2, obj1], dim=-1)
