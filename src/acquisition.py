@@ -4,7 +4,7 @@ EVHI (Expected Value of Hypervolume Improvement) acquisition function implementa
 
 import torch
 import logging
-from botorch.acquisition.multi_objective import qLogNoisyExpectedHypervolumeImprovement
+from botorch.acquisition.multi_objective import qLogNoisyExpectedHypervolumeImprovement,qLogExpectedHypervolumeImprovement
 from botorch.sampling import SobolQMCNormalSampler
 from botorch.utils.multi_objective.box_decompositions.non_dominated import FastNondominatedPartitioning
 
@@ -69,17 +69,29 @@ class EVHIAcquisition:
         else:
             current_pred = torch.zeros((1, self.num_objectives), dtype=torch.float32, device=self.device)
         
+
+        partitioning = FastNondominatedPartitioning(ref_point=dynamic_ref, Y=current_pred)
+
         sampler = SobolQMCNormalSampler(sample_shape=torch.Size([128]))
         
         if train_x is None:
             raise ValueError("train_x is required for qLogNoisyExpectedHypervolumeImprovement")
         
-        acq_func = qLogNoisyExpectedHypervolumeImprovement(
+        # 使用噪声版本的EVHI，适用于有观测噪声的情况
+        # acq_func = qLogNoisyExpectedHypervolumeImprovement(
+        #     model=model,
+        #     ref_point=dynamic_ref,
+        #     X_baseline=train_x,
+        #     sampler=sampler,
+        #     prune_baseline=True,    # 开启剪枝：剔除明显不是前沿的点，极大提升速度
+        # )
+
+        # 使用无噪声版本的EVHI，适用于无观测噪声的情况
+        acq_func = qLogExpectedHypervolumeImprovement(
             model=model,
             ref_point=dynamic_ref,
-            X_baseline=train_x,
-            sampler=sampler,
-            prune_baseline=True,    # 开启剪枝：剔除明显不是前沿的点，极大提升速度
+            partitioning=partitioning,
+            sampler=sampler
         )
         
         if torch.cuda.is_available():
